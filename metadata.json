@@ -1,0 +1,5 @@
+{
+  "name": "Trading Bot by softjelly",
+  "description": "An application to analyze RSI patterns by uploading chart images, and to predict and visualize the next RSI pattern and price flow.",
+  "requestFramePermissions": []
+}
