@@ -23,6 +23,7 @@ declare global {
 
 type Tab = 'chat' | 'book';
 
+const APP_VERSION = 'v1.2.0';
 const KAKAO_APP_KEY = '29011e480114ee01b0c0822d028a820d';
 
 const App: React.FC = () => {
@@ -331,6 +332,9 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
+      {/* Version indicator */}
+      <div className="version-badge">{APP_VERSION}</div>
+
       {/* Mobile Tab Bar */}
       <div className="mobile-tabs">
         <button
