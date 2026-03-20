@@ -52,8 +52,7 @@ export const AutobiographyPanel: React.FC<AutobiographyPanelProps> = ({
       </div>
 
       {/* 진행률 바 */}
-      {(confirmedChapters.length > 0 || pendingChapter) && (
-        <div className="autobiography-progress">
+      <div className="autobiography-progress">
           <div className="autobiography-progress-header">
             <span className="autobiography-progress-label">자서전 진행률</span>
             <span className="autobiography-progress-percent">{progress}%</span>
@@ -65,13 +64,13 @@ export const AutobiographyPanel: React.FC<AutobiographyPanelProps> = ({
             ></div>
           </div>
           <span className="autobiography-progress-hint">
-            {progress < 30 ? '아직 이야기의 시작이에요' :
+            {progress === 0 ? '대화를 시작하면 진행률이 올라가요' :
+             progress < 30 ? '아직 이야기의 시작이에요' :
              progress < 60 ? '이야기가 점점 풍성해지고 있어요' :
              progress < 90 ? '자서전이 거의 완성되어 가요!' :
              '마무리 단계예요!'}
           </span>
         </div>
-      )}
 
       <div className="autobiography-content">
         {confirmedChapters.length === 0 && !pendingChapter && (
