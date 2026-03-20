@@ -267,11 +267,18 @@ body {
   border-right: 1px solid var(--border);
 }
 
-/* === Settings Button === */
-.settings-btn {
+/* === Floating Buttons === */
+.floating-buttons {
   position: fixed;
   top: 16px;
   right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+.backup-btn,
+.settings-btn-float {
   width: 44px;
   height: 44px;
   background: #FFFFFF;
@@ -282,15 +289,178 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
   opacity: 0.7;
   transition: opacity 0.2s, box-shadow 0.2s;
   box-shadow: var(--shadow);
 }
 
-.settings-btn:hover {
+.backup-btn:hover,
+.settings-btn-float:hover {
   opacity: 1;
   box-shadow: var(--shadow-lg);
+}
+
+/* === Backup Prompt Overlay === */
+.backup-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* === Backup Prompt (10% 알림) === */
+.backup-prompt {
+  background: #FFFFFF;
+  border-radius: 24px 24px 0 0;
+  padding: 28px 24px 32px;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+
+.backup-prompt-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.backup-prompt h3 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.backup-prompt p {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.backup-prompt-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.backup-prompt-later {
+  flex: 1;
+  padding: 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text-secondary);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.backup-prompt-save {
+  flex: 1;
+  padding: 16px;
+  background: var(--gradient-warm);
+  border: none;
+  border-radius: 16px;
+  color: white;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(255, 107, 53, 0.3);
+}
+
+.backup-prompt-later:active,
+.backup-prompt-save:active {
+  transform: scale(0.97);
+}
+
+/* === Backup Menu === */
+.backup-menu {
+  background: #FFFFFF;
+  border-radius: 24px 24px 0 0;
+  padding: 28px 24px 32px;
+  width: 100%;
+  max-width: 480px;
+  animation: slideUp 0.3s ease;
+}
+
+.backup-menu h3 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.backup-menu-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.backup-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 16px;
+  background: var(--bg-input);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.backup-menu-item:active {
+  transform: scale(0.98);
+  background: var(--accent-soft);
+  border-color: var(--accent-light);
+}
+
+.backup-menu-item-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.backup-menu-item-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.backup-menu-item-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.backup-menu-close {
+  width: 100%;
+  padding: 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
 }
 
 /* === Chat Panel === */
@@ -1198,9 +1368,14 @@ body {
     display: flex;
   }
 
-  .settings-btn {
+  .floating-buttons {
     top: 10px;
     right: 10px;
+    gap: 6px;
+  }
+
+  .backup-btn,
+  .settings-btn-float {
     width: 40px;
     height: 40px;
     font-size: 18px;

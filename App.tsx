@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatPanel } from './components/ChatPanel';
 import { AutobiographyPanel } from './components/AutobiographyPanel';
 import {
   loadData,
   saveData,
   createDefaultData,
+  exportBackup,
+  importBackup,
+  getLastBackupMilestone,
+  setLastBackupMilestone,
   type AutobiographyData,
   type ChatMessage,
   type Chapter,
@@ -28,6 +32,9 @@ const App: React.FC = () => {
   const [pendingChapter, setPendingChapter] = useState<Chapter | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('chat');
   const [showSetup, setShowSetup] = useState(false);
+  const [showBackupPrompt, setShowBackupPrompt] = useState(false);
+  const [showBackupMenu, setShowBackupMenu] = useState(false);
+  const backupFileRef = useRef<HTMLInputElement>(null);
 
   // Initialize Kakao SDK
   useEffect(() => {
@@ -54,6 +61,16 @@ const App: React.FC = () => {
       saveData(data);
     }
   }, [data]);
+
+  // 10% 단위로 백업 권유
+  useEffect(() => {
+    if (!data || data.progress === 0) return;
+    const currentMilestone = Math.floor(data.progress / 10) * 10;
+    const lastMilestone = getLastBackupMilestone();
+    if (currentMilestone > lastMilestone && currentMilestone >= 10) {
+      setShowBackupPrompt(true);
+    }
+  }, [data?.progress]);
 
   const handleSetup = async (apiKey: string, name: string, birthYear: number) => {
     const newData = {
@@ -247,6 +264,47 @@ const App: React.FC = () => {
     });
   }, [data]);
 
+  const handleBackupNow = useCallback(() => {
+    if (!data) return;
+    exportBackup(data);
+    const milestone = Math.floor(data.progress / 10) * 10;
+    setLastBackupMilestone(milestone);
+    setShowBackupPrompt(false);
+  }, [data]);
+
+  const handleDismissBackup = useCallback(() => {
+    if (!data) return;
+    const milestone = Math.floor(data.progress / 10) * 10;
+    setLastBackupMilestone(milestone);
+    setShowBackupPrompt(false);
+  }, [data]);
+
+  const handleRestore = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const restored = await importBackup(file);
+      // API 키가 없으면 현재 키 유지
+      if (data?.geminiApiKey) {
+        restored.geminiApiKey = data.geminiApiKey;
+      }
+      if (!restored.geminiApiKey) {
+        const key = prompt('API 키를 입력해주세요:');
+        if (key) restored.geminiApiKey = key;
+        else {
+          alert('API 키가 필요합니다.');
+          return;
+        }
+      }
+      setData(restored);
+      setShowBackupMenu(false);
+      alert(`복원 완료! (${restored.chapters.filter(c => c.confirmed).length}개 챕터, 대화 ${restored.chatHistory.length}개)`);
+    } catch (err: any) {
+      alert(err.message || '복원에 실패했습니다.');
+    }
+    e.target.value = '';
+  }, [data]);
+
   const handleReset = () => {
     if (confirm('정말로 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       setData(createDefaultData());
@@ -321,10 +379,70 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Settings button */}
-      <button className="settings-btn" onClick={handleReset} title="초기화">
-        ⚙️
-      </button>
+      {/* Settings & Backup buttons */}
+      <div className="floating-buttons">
+        <button className="backup-btn" onClick={() => setShowBackupMenu(true)} title="백업/복원">
+          💾
+        </button>
+        <button className="settings-btn-float" onClick={handleReset} title="초기화">
+          ⚙️
+        </button>
+      </div>
+
+      {/* Hidden file input for restore */}
+      <input
+        type="file"
+        ref={backupFileRef}
+        accept=".json"
+        onChange={handleRestore}
+        style={{ display: 'none' }}
+      />
+
+      {/* 10% 단위 백업 권유 팝업 */}
+      {showBackupPrompt && (
+        <div className="backup-prompt-overlay" onClick={handleDismissBackup}>
+          <div className="backup-prompt" onClick={(e) => e.stopPropagation()}>
+            <div className="backup-prompt-icon">💾</div>
+            <h3>백업하시겠어요?</h3>
+            <p>자서전이 {data?.progress}%까지 진행됐어요!<br/>혹시 모를 상황에 대비해 백업해두세요.</p>
+            <div className="backup-prompt-actions">
+              <button className="backup-prompt-later" onClick={handleDismissBackup}>
+                나중에
+              </button>
+              <button className="backup-prompt-save" onClick={handleBackupNow}>
+                지금 백업하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 백업/복원 메뉴 */}
+      {showBackupMenu && (
+        <div className="backup-prompt-overlay" onClick={() => setShowBackupMenu(false)}>
+          <div className="backup-menu" onClick={(e) => e.stopPropagation()}>
+            <h3>백업 / 복원</h3>
+            <p className="backup-menu-desc">대화 내용과 자서전을 파일로 저장하거나,<br/>이전에 저장한 파일에서 복원할 수 있어요.</p>
+            <button className="backup-menu-item export" onClick={handleBackupNow}>
+              <span className="backup-menu-item-icon">📤</span>
+              <div>
+                <div className="backup-menu-item-title">백업 파일 저장</div>
+                <div className="backup-menu-item-sub">현재 대화와 자서전을 파일로 내보내기</div>
+              </div>
+            </button>
+            <button className="backup-menu-item import" onClick={() => backupFileRef.current?.click()}>
+              <span className="backup-menu-item-icon">📥</span>
+              <div>
+                <div className="backup-menu-item-title">백업에서 복원</div>
+                <div className="backup-menu-item-sub">저장해둔 파일에서 불러오기</div>
+              </div>
+            </button>
+            <button className="backup-menu-close" onClick={() => setShowBackupMenu(false)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
