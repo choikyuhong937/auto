@@ -344,10 +344,16 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
           onChange={(e) => setRunwayKeyInput(e.target.value)}
           placeholder="key_..."
         />
+        <button className="yt-btn secondary" onClick={async () => {
+          try { setRunwayKeyInput((await navigator.clipboard.readText()).trim()); } catch { /* ignore */ }
+        }}>📋 붙여넣기</button>
         <button className="yt-btn secondary" onClick={handleSaveRunway} disabled={!!busy}>저장</button>
       </div>
+      <a className="yt-btn primary" href="https://dev.runwayml.com/" target="_blank" rel="noopener noreferrer">
+        ① Runway 키 받으러 가기 (런웨이 아이디로 로그인 → API Keys → Create)
+      </a>
       <p className="yt-hint">
-        dev.runwayml.com 에서 발급한 API 키 (일반 Runway 앱 크레딧과 별도로 API 크레딧 충전 필요).
+        ② 나온 키 복사 → ③ 위 📋 붙여넣기 → 저장. dev.runwayml.com 에서 발급한 API 키 (일반 Runway 앱 크레딧과 별도로 API 크레딧 충전 필요).
         {runwayCredits !== null && <> 남은 크레딧: <b>{fmt(runwayCredits)}</b></>}
       </p>
     </div>
