@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatPanel } from './components/ChatPanel';
 import { AutobiographyPanel } from './components/AutobiographyPanel';
+import { YouTubePanel } from './components/YouTubePanel';
 import {
   loadData,
   saveData,
@@ -23,7 +24,7 @@ declare global {
 
 type Tab = 'chat' | 'book';
 
-const APP_VERSION = 'v1.2.0';
+const APP_VERSION = 'v1.3.0';
 const KAKAO_APP_KEY = '29011e480114ee01b0c0822d028a820d';
 
 const App: React.FC = () => {
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   const [showSetup, setShowSetup] = useState(false);
   const [showBackupPrompt, setShowBackupPrompt] = useState(false);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
+  const [showYouTube, setShowYouTube] = useState(false);
   const backupFileRef = useRef<HTMLInputElement>(null);
 
   // Initialize Kakao SDK
@@ -385,6 +387,9 @@ const App: React.FC = () => {
 
       {/* Settings & Backup buttons */}
       <div className="floating-buttons">
+        <button className="backup-btn" onClick={() => setShowYouTube(true)} title="유튜브">
+          📺
+        </button>
         <button className="backup-btn" onClick={() => setShowBackupMenu(true)} title="백업/복원">
           💾
         </button>
@@ -401,6 +406,15 @@ const App: React.FC = () => {
         onChange={handleRestore}
         style={{ display: 'none' }}
       />
+
+      {showYouTube && (
+        <YouTubePanel
+          geminiApiKey={data.geminiApiKey}
+          userName={data.userName}
+          chapters={data.chapters}
+          onClose={() => setShowYouTube(false)}
+        />
+      )}
 
       {/* 10% 단위 백업 권유 팝업 */}
       {showBackupPrompt && (
