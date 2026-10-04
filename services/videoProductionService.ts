@@ -278,3 +278,28 @@ export async function renderVideo(
   onProgress?.(100);
   return done;
 }
+
+/** 로그인 없이 채널 주소/이름만으로 Google 검색 기반 분석 (공개 정보 기준) */
+export async function analyzeChannelByUrl(apiKey: string, channelUrl: string): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `당신은 유튜브 채널 성장 컨설턴트입니다. Google 검색으로 다음 유튜브 채널의 공개 정보(구독자 수, 최근 영상 제목과 조회수, 업로드 빈도, 주제)를 찾아보고 한국어로 리포트를 써주세요.
+
+채널: ${channelUrl}
+
+리포트 구성:
+1. 채널 현황 (찾은 수치는 대략값임을 밝히기)
+2. 반응이 좋은 영상/주제
+3. 아쉬운 점
+4. 다음에 만들 영상 아이디어 3개 (제목 예시 포함)
+5. 업로드 빈도·제목·썸네일 개선 팁
+
+정보를 찾지 못한 항목은 지어내지 말고 "확인 불가"라고 쓰세요.
+마크다운 기호(#, *) 없이 번호와 줄바꿈만 사용하세요.`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.0-flash',
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: { tools: [{ googleSearch: {} }], maxOutputTokens: 4096, temperature: 0.4 },
+  });
+  return response.text || '';
+}

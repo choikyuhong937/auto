@@ -21,6 +21,7 @@ import {
 import {
   generateVideoPlan,
   analyzeChannel,
+  analyzeChannelByUrl,
   renderVideo,
   type VideoPlan,
   type VideoFormat,
@@ -77,7 +78,7 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
   const [clientIdInput, setClientIdInput] = useState(getClientId());
   const [runwayKeyInput, setRunwayKeyInput] = useState(getRunwayKey());
   const [runwayCredits, setRunwayCredits] = useState<number | null>(null);
-  const [showSettings, setShowSettings] = useState(!getClientId());
+  const [showSettings, setShowSettings] = useState(false);
   const [subTab, setSubTab] = useState<SubTab>('analytics');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -87,6 +88,9 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [analytics, setAnalytics] = useState<DailyAnalytics[]>([]);
   const [report, setReport] = useState('');
+  const [channelUrl, setChannelUrl] = useState(() => {
+    try { return localStorage.getItem('yt_channel_url') || ''; } catch { return ''; }
+  });
 
   // 제작
   const confirmedChapters = chapters.filter((c) => c.confirmed);
@@ -176,6 +180,32 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
       if (!channel) return;
       setReport(await analyzeChannel(geminiApiKey, channel, videos, analytics));
     });
+
+  const handleSimpleAnalyze = () =>
+    run('AI가 채널을 검색해서 분석하는 중...', async () => {
+      try { localStorage.setItem('yt_channel_url', channelUrl.trim()); } catch { /* ignore */ }
+      setReport(await analyzeChannelByUrl(geminiApiKey, channelUrl.trim()));
+    });
+
+  // 로그인 없이 업로드: 영상 저장 + 제목/설명 복사 + YouTube Studio 열기
+  const handleOpenStudio = async () => {
+    if (draft.file) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(draft.file);
+      a.download = draft.fileName || 'video.webm';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+    }
+    const text = `${draft.title}\n\n${draft.description}\n\n${draft.tags}`;
+    try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+    window.open('https://www.youtube.com/upload', '_blank');
+  };
+
+  // 런웨이 API 키 없이: 프롬프트 복사 후 Runway 웹앱 열기
+  const handleOpenRunwayApp = async () => {
+    try { await navigator.clipboard.writeText(runwayPrompt); } catch { /* ignore */ }
+    window.open('https://app.runwayml.com', '_blank');
+  };
 
   // ─── 제작 ─────────────────────────
   const handlePlan = () =>
@@ -284,7 +314,8 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
 
   const settingsSection = (
     <div className="yt-card">
-      <h3>연결 설정</h3>
+      <h3>고급 연결 (선택)</h3>
+      <p className="yt-hint">설정 없이도 모든 기능을 쓸 수 있어요. 아래는 정확한 채널 통계와 앱에서 바로 업로드하고 싶을 때만 필요해요.</p>
       <label className="yt-label">Google OAuth 클라이언트 ID</label>
       <input
         className="yt-input"
@@ -297,6 +328,13 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
         승인된 자바스크립트 원본에 <b>{window.location.origin}</b> 를 추가하세요.
         YouTube Data API v3 와 YouTube Analytics API 를 사용 설정해야 합니다.
       </p>
+      {token ? (
+        <button className="yt-btn secondary" onClick={handleDisconnect}>YouTube 연결 해제</button>
+      ) : (
+        <button className="yt-btn primary" onClick={handleConnect} disabled={!clientIdInput.trim() || !!busy}>
+          Google 계정으로 YouTube 연결
+        </button>
+      )}
       <label className="yt-label">Runway API 키 (선택)</label>
       <div className="yt-row">
         <input
@@ -338,21 +376,23 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
         <div className="yt-body">
           {showSettings && settingsSection}
 
-          {!token ? (
-            <div className="yt-card yt-connect">
-              <p>YouTube 계정을 연결하면 채널 분석, 영상 제작, 업로드를 할 수 있어요.</p>
-              <button className="yt-btn primary" onClick={handleConnect} disabled={!clientIdInput.trim() || !!busy}>
-                Google 계정으로 YouTube 연결
-              </button>
-              {!clientIdInput.trim() && <p className="yt-hint">먼저 ⚙️ 설정에서 클라이언트 ID를 입력해주세요.</p>}
-            </div>
-          ) : (
-            <>
+          <>
               <div className="yt-tabs">
                 <button className={subTab === 'analytics' ? 'active' : ''} onClick={() => setSubTab('analytics')}>📊 채널 분석</button>
                 <button className={subTab === 'create' ? 'active' : ''} onClick={() => setSubTab('create')}>🎬 영상 제작</button>
                 <button className={subTab === 'upload' ? 'active' : ''} onClick={() => setSubTab('upload')}>⬆️ 업로드</button>
               </div>
+
+              {subTab === 'analytics' && !token && (
+                <div className="yt-card">
+                  <h3>내 채널 AI 분석</h3>
+                  <label className="yt-label">채널 주소나 이름</label>
+                  <input className="yt-input" value={channelUrl} onChange={(e) => setChannelUrl(e.target.value)} placeholder="예: https://www.youtube.com/@내채널  또는  @내채널" />
+                  <button className="yt-btn primary" onClick={handleSimpleAnalyze} disabled={!!busy || !channelUrl.trim()}>분석 받기</button>
+                  <p className="yt-hint">공개된 정보를 검색해서 분석해요. 정확한 통계 그래프가 필요하면 ⚙️ 고급 연결을 쓰세요.</p>
+                  {report && <div className="yt-report">{report}</div>}
+                </div>
+              )}
 
               {subTab === 'analytics' && channel && (
                 <>
@@ -407,7 +447,6 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
                       ))}
                     </ul>
                   </div>
-                  <button className="yt-btn secondary" onClick={handleDisconnect}>YouTube 연결 해제</button>
                 </>
               )}
 
@@ -486,7 +525,12 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
                   <div className="yt-card">
                     <h3>3-B. Runway AI 영상 클립</h3>
                     {!getRunwayKey() ? (
-                      <p className="yt-hint">⚙️ 설정에서 Runway API 키를 넣으면 AI가 움직이는 영상을 만들어줘요.</p>
+                      <>
+                        <label className="yt-label">장면 설명 (영어로 쓰면 결과가 더 좋아요)</label>
+                        <textarea className="yt-input" rows={3} value={runwayPrompt} onChange={(e) => setRunwayPrompt(e.target.value)} placeholder="예: A warm 1970s Korean village at sunset, cinematic, slow camera push in" />
+                        <button className="yt-btn primary" onClick={handleOpenRunwayApp} disabled={!runwayPrompt.trim()}>설명 복사하고 Runway 열기</button>
+                        <p className="yt-hint">가지고 계신 Runway 아이디로 로그인된 화면이 열려요. 입력창에 붙여넣고 만들기만 누르면 돼요. 다 만든 영상은 다운로드해서 업로드 탭에 쓰면 됩니다.</p>
+                      </>
                     ) : (
                       <>
                         <label className="yt-label">장면 설명 (영어로 쓰면 결과가 더 좋아요)</label>
@@ -524,7 +568,28 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
                 </>
               )}
 
-              {subTab === 'upload' && (
+              {subTab === 'upload' && !token && (
+                <div className="yt-card">
+                  <h3>YouTube에 올리기</h3>
+                  {draft.file ? (
+                    <>
+                      <p className="yt-hint">{draft.fileName} ({(draft.file.size / 1048576).toFixed(1)}MB)</p>
+                      <label className="yt-label">제목</label>
+                      <input className="yt-input" value={draft.title} maxLength={100} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                      <label className="yt-label">설명</label>
+                      <textarea className="yt-input" rows={5} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                      <button className="yt-btn primary" onClick={handleOpenStudio}>영상 저장하고 YouTube 열기</button>
+                      <p className="yt-hint">
+                        영상 파일이 저장되고, 제목·설명은 복사돼요. 열린 YouTube 화면에서 저장된 파일을 끌어다 놓고, 제목 칸에 붙여넣기(길게 누르기 → 붙여넣기)만 하면 끝!
+                      </p>
+                    </>
+                  ) : (
+                    <p className="yt-hint">🎬 영상 제작 탭에서 영상을 만든 뒤 "업로드하러 가기"를 눌러주세요.</p>
+                  )}
+                </div>
+              )}
+
+              {subTab === 'upload' && token && (
                 <div className="yt-card">
                   <h3>새 영상 업로드</h3>
                   <label className="yt-label">영상 파일</label>
@@ -563,8 +628,7 @@ export const YouTubePanel: React.FC<YouTubePanelProps> = ({ geminiApiKey, userNa
                   )}
                 </div>
               )}
-            </>
-          )}
+          </>
         </div>
       </div>
     </div>
